@@ -23,6 +23,8 @@ module Coverband
         attr_reader :line_number
         # The coverage data for this line: either nil (never), 0 (missed) or >=1 (times covered)
         attr_reader :coverage
+        # The coverage data posted time for this line: either nil (never), nil (missed) or Time instance (last posted)
+        attr_reader :coverage_posted
         # Whether this line was skipped
         attr_reader :skipped
 
@@ -31,14 +33,16 @@ module Coverband
         alias line line_number
         alias number line_number
 
-        def initialize(src, line_number, coverage)
+        def initialize(src, line_number, coverage, coverage_posted)
           raise ArgumentError, "Only String accepted for source" unless src.is_a?(String)
           raise ArgumentError, "Only Integer accepted for line_number" unless line_number.is_a?(Integer)
           raise ArgumentError, "Only Integer and nil accepted for coverage" unless coverage.is_a?(Integer) || coverage.nil?
+          raise ArgumentError, "Only Time and nil accepted for coverage_posted" unless coverage_posted.is_a?(Time) || coverage_posted.nil?
 
           @src = src
           @line_number = line_number
           @coverage = coverage
+          @coverage_posted = coverage_posted
           @skipped = false
         end
 
@@ -82,6 +86,8 @@ module Coverband
       attr_reader :filename
       # The array of coverage data received from the Coverage.result
       attr_reader :coverage
+      # The array of coverage timedata received from the Coverage.result
+      attr_reader :coverage_posted
 
       # the date this version of the file first started to record coverage
       attr_reader :first_updated_at
@@ -96,6 +102,7 @@ module Coverband
         @runtime_relavant_lines = nil
         if file_data.is_a?(Hash)
           @coverage = file_data["data"]
+          @coverage_posted = file_data["timedata"]
           @first_updated_at = @last_updated_at = NOT_AVAILABLE
           @first_updated_at = Time.at(file_data["first_updated_at"]) if file_data["first_updated_at"]
           @last_updated_at = Time.at(file_data["last_updated_at"]) if file_data["last_updated_at"]
@@ -139,7 +146,7 @@ module Coverband
         coverage_exceeding_source_warn if coverage.size > src.size
 
         lines = src.map.with_index(1) { |src, i|
-          Coverband::Utils::SourceFile::Line.new(src, i, never_loaded ? 0 : coverage[i - 1])
+          Coverband::Utils::SourceFile::Line.new(src, i, never_loaded ? 0 : coverage[i - 1], never_loaded ? nil : coverage_posted[i - 1])
         }
 
         process_skipped_lines(lines)
@@ -198,6 +205,10 @@ module Coverband
 
       def line_coverage(index)
         lines[index]&.coverage
+      end
+
+      def line_coverage_posted(index)
+        lines[index]&.coverage_posted
       end
 
       # Returns all lines that should have been, but were not covered
