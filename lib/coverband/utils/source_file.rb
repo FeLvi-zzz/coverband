@@ -102,7 +102,7 @@ module Coverband
         @runtime_relavant_lines = nil
         if file_data.is_a?(Hash)
           @coverage = file_data["data"]
-          @coverage_posted = file_data["timedata"]
+          @coverage_posted = file_data["timedata"] || [] # TODO: implement timedata except for HashRedisStore
           @first_updated_at = @last_updated_at = NOT_AVAILABLE
           @first_updated_at = Time.at(file_data["first_updated_at"]) if file_data["first_updated_at"]
           @last_updated_at = Time.at(file_data["last_updated_at"]) if file_data["last_updated_at"]
