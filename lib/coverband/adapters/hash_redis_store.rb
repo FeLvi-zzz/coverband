@@ -81,7 +81,7 @@ module Coverband
 
           arguments_key = [@redis_namespace, SecureRandom.uuid].compact.join(".")
           @redis.set(arguments_key, {ttl: @ttl, files_data: files_data}.to_json, ex: JSON_PAYLOAD_EXPIRATION)
-          @redis.evalsha(hash_incr_script, [arguments_key])
+          @redis.evalsha(hash_incr_script, [arguments_key], [Time.now.to_i])
         end
         @redis.sadd(files_key, keys) if keys.any?
       end
@@ -118,7 +118,8 @@ module Coverband
         return unless file_hash(file) == data_from_redis[FILE_HASH]
 
         data = coverage_data_from_redis(data_from_redis)
-        hash[file] = data_from_redis.select { |meta_data_key, _value| META_DATA_KEYS.include?(meta_data_key) }.merge!("data" => data)
+        timedata = coverage_time_data_from_redis(data_from_redis)
+        hash[file] = data_from_redis.select { |meta_data_key, _value| META_DATA_KEYS.include?(meta_data_key) }.merge!("data" => data, "timedata" => timedata)
         hash[file][LAST_UPDATED_KEY] = hash[file][LAST_UPDATED_KEY].nil? || hash[file][LAST_UPDATED_KEY] == "" ? nil : hash[file][LAST_UPDATED_KEY].to_i
         hash[file].merge!(LAST_UPDATED_KEY => hash[file][LAST_UPDATED_KEY], FIRST_UPDATED_KEY => hash[file][FIRST_UPDATED_KEY].to_i)
       end
@@ -128,6 +129,14 @@ module Coverband
         Array.new(max + 1) do |index|
           line_coverage = data_from_redis[index.to_s]
           line_coverage.nil? ? nil : line_coverage.to_i
+        end
+      end
+
+      def coverage_time_data_from_redis(data_from_redis)
+        max = data_from_redis[FILE_LENGTH_KEY].to_i - 1
+        Array.new(max + 1) do |index|
+          unixtime = data_from_redis["#{index}_last_posted"]
+          unixtime.nil? ? nil : Time.at(unixtime.to_i)
         end
       end
 

@@ -42,7 +42,11 @@ $(document).ready(function() {
     var source_table = $($(this).attr("href"));
     var loader_url = $(source_table).attr("data-loader-url");
 
-    $(source_table).load(loader_url);
+    $(source_table).load(loader_url, function() {
+      $(this).find("abbr.timeago").each(function() {
+        $(this).timeago();
+      });
+    });
 
     // If not highlighted yet, do it!
     if (!source_table.hasClass("highlighted")) {
